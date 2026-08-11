@@ -64,7 +64,7 @@
   .clock{font-variant-numeric:tabular-nums;opacity:.95;font-size:13px}
 
   /* ===== APP LAYOUT ===== */
-  .app{display:grid;grid-template-columns:208px 1fr;min-height:calc(100vh - 55px)}
+  .app{display:block;min-height:calc(100vh - 55px)}
 
   /* sidebar */
   .sidebar{
@@ -485,16 +485,6 @@
 </div>
 
 <div class="app">
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="nav-item active"><span class="ic">▦</span> Painel</div>
-    <div class="nav-item"><span class="ic">☀</span> Fluxo do Dia</div>
-    <div class="nav-item"><span class="ic">▥</span> Projetos</div>
-    <div class="nav-item"><span class="ic">▤</span> Notas &amp; Decisões</div>
-    <div class="nav-sep">Áreas</div>
-    <div id="areaList"></div>
-    <div class="quote">"Disciplina é fazer hoje o que precisa ser feito, mesmo sem vontade."</div>
-  </aside>
 
   <!-- MAIN -->
   <main class="main">
@@ -852,16 +842,7 @@ function ouvirMudancas(){
 window.addEventListener('beforeunload',()=>{ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} });
 
 // ====== RENDER ======
-function renderAll(){ renderAreas(); renderTasks(); renderProjects(); renderInsights(); }
-
-function renderAreas(){
-  const el=document.getElementById('areaList');el.innerHTML='';
-  ['drogaria','coopefarma','pessoal','saude','financeiro'].forEach(k=>{
-    const d=document.createElement('div');d.className='area-item';
-    d.innerHTML=`<span class="area-dot" style="background:${AREAS[k].color}"></span>${AREAS[k].label}`;
-    el.appendChild(d);
-  });
-}
+function renderAll(){ renderTasks(); renderProjects(); renderInsights(); }
 
 function taskMatchesFilter(t){
   if(t.discarded) return false;                    // descartadas nunca aparecem
