@@ -434,6 +434,19 @@
   .bcol[data-col="arquivada"] .task{opacity:.72}
   .bcol[data-col="arquivada"] .task:hover{opacity:1}
 
+  /* ── rolagem independente de cada coluna (telas grandes) ── */
+  @media(min-width:1101px){
+    .bcol{max-height:calc(100vh - 168px);position:relative}
+    .bcol-head{position:static;top:auto}
+    .bcol-body{overflow-y:auto;overscroll-behavior:contain;
+               padding-right:7px;margin-right:-7px;
+               scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+    .bcol-body::-webkit-scrollbar{width:8px}
+    .bcol-body::-webkit-scrollbar-track{background:transparent}
+    .bcol-body::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+    .bcol-body:hover::-webkit-scrollbar-thumb{background:var(--txt-faint)}
+  }
+
   /* indicador de sincronização na barra do topo */
   .sync{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:#fff;
         background:rgba(255,255,255,.16);border-radius:20px;padding:5px 12px;white-space:nowrap}
@@ -948,6 +961,17 @@ function bindBoard(){
     cl.addEventListener('dragover', e=>{ if(!_dragId) return; e.preventDefault(); cl.classList.add('drop'); });
     cl.addEventListener('dragleave', e=>{ if(!cl.contains(e.relatedTarget)) cl.classList.remove('drop'); });
     cl.addEventListener('drop', e=>{ e.preventDefault(); cl.classList.remove('drop'); moveTask(_dragId, col, null); });
+  });
+
+  // rola a propria coluna quando o cartao arrastado chega perto da borda
+  document.querySelectorAll('.bcol-body').forEach(body=>{
+    body.addEventListener('dragover', e=>{
+      if(!_dragId) return;
+      if(body.scrollHeight<=body.clientHeight) return;
+      const r=body.getBoundingClientRect(), zona=64;
+      if(e.clientY < r.top+zona)         body.scrollTop -= 16;
+      else if(e.clientY > r.bottom-zona) body.scrollTop += 16;
+    });
   });
 
   // sombra sutil quando o cabecalho da coluna encosta no topo
