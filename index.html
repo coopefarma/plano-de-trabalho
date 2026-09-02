@@ -130,6 +130,19 @@
   /* task cards */
   #taskList{display:flex;flex-direction:column;gap:9px}
   .task{
+    /* ── card da tarefa continua BRANCO; o resto do app segue escuro ──
+       as variáveis abaixo valem só dentro do card (herança de CSS var) */
+    --panel:#ffffff;
+    --panel-2:#f2f5f9;
+    --line:#dde3ec;
+    --txt:#1f2a37;
+    --txt-dim:#6b7684;
+    --txt-faint:#9aa3af;
+    --green-soft:#e7f6ee;
+    --green-dark:#0f8a51;
+    --shadow:0 2px 8px rgba(2,7,18,.55);
+    --shadow-lg:0 10px 24px rgba(2,7,18,.7);
+    color-scheme:light;
     background:var(--panel);border:1px solid var(--line);border-radius:11px;
     border-left:4px solid var(--a-neutro);padding:12px 14px;box-shadow:var(--shadow);
     transition:box-shadow .15s,opacity .2s;cursor:default;
