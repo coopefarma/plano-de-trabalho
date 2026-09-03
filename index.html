@@ -497,6 +497,43 @@
   .gate-box button:hover{background:var(--green-dark)}
   .gate-msg{min-height:17px;margin-top:10px;font-size:12px;font-weight:600;color:#ff8b7d}
 
+
+  /* ══════════ CHECKLISTS (estilo Trello) ══════════ */
+  .chk-section{margin-top:26px}
+  .chk-head-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+  .chk-head-row h2{font-family:'Poppins',sans-serif;font-size:17px;font-weight:600;letter-spacing:-.2px}
+  #chkGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:13px;align-items:start}
+  @media(max-width:560px){#chkGrid{grid-template-columns:1fr}}
+  .chk-card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    box-shadow:var(--shadow);border-top:3px solid var(--green);overflow:hidden;max-width:820px}
+  .chk-top{display:flex;align-items:center;gap:9px;padding:14px 15px 10px;cursor:pointer;user-select:none}
+  .chk-top:hover{background:var(--hover)}
+  .chk-caret{color:var(--txt-faint);font-size:10px;transition:transform .15s;flex:none}
+  .chk-card.open .chk-caret{transform:rotate(90deg)}
+  .chk-name{font-family:'Poppins',sans-serif;font-size:15px;font-weight:600;flex:1;line-height:1.25;word-break:break-word}
+  .chk-count{font-size:12px;color:var(--txt-dim);white-space:nowrap}
+  .chk-pct{font-family:'Poppins',sans-serif;font-size:20px;font-weight:700;color:var(--green);line-height:1;white-space:nowrap}
+  .chk-pct small{font-size:11px;font-weight:600}
+  .chk-bar{height:6px;background:var(--panel-2);margin:0 15px 12px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .chk-bar span{display:block;height:100%;background:var(--green);border-radius:10px;transition:width .4s ease}
+  .chk-body{display:none;padding:0 15px 14px}
+  .chk-card.open .chk-body{display:block}
+  .chk-item{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .chk-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;accent-color:var(--green);cursor:pointer;flex:none}
+  .chk-item textarea{flex:1;background:transparent;border:none;color:var(--txt);font-family:inherit;font-size:13.5px;
+    line-height:1.55;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;padding:0;outline:none}
+  .chk-item textarea.done-item{text-decoration:line-through;color:var(--txt-faint)}
+  .chk-item .chk-del{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;font-size:13px;padding:0 2px;flex:none;line-height:1.5}
+  .chk-item .chk-del:hover{color:var(--p-alta)}
+  .chk-add{margin-top:11px;width:100%;padding:9px;background:var(--panel-2);border:1px dashed var(--line);
+    border-radius:9px;color:var(--txt-dim);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .chk-add:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-soft)}
+  .chk-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+  .chk-foot button{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--txt-dim);
+    font-size:11.5px;font-weight:600;padding:6px 10px;cursor:pointer;font-family:inherit}
+  .chk-foot button:hover{background:var(--panel-2);color:var(--txt)}
+  .chk-foot button.danger:hover{color:var(--p-alta);border-color:var(--p-alta)}
+  .chk-empty{color:var(--txt-faint);font-size:13px;padding:8px 2px}
 </style>
 </head>
 <body>
@@ -585,6 +622,15 @@
           <button class="btn sm" id="addProjBtn">+ Novo projeto</button>
         </div>
         <div id="projGrid"></div>
+
+        <!-- CHECKLISTS -->
+        <div class="chk-section">
+          <div class="chk-head-row">
+            <h2>✅ Checklists</h2>
+            <button class="btn sm" id="addChkBtn">+ Nova lista</button>
+          </div>
+          <div id="chkGrid"></div>
+        </div>
         <div class="backup-row">
           <div class="view-all" id="exportBtn">⬇ Exportar Excel</div>
           <div class="view-all" id="backupBtn">💾 Salvar backup</div>
@@ -759,6 +805,13 @@ function setTaskStatus(t,s){
 function normalizeState(d){
   if(!d || !Array.isArray(d.tasks) || !Array.isArray(d.projects)) return null;
   d.tasks.forEach(t=>{ setTaskStatus(t, taskStatus(t)); });
+  // checklists: cria a lista inicial na primeira vez e conserta itens sem id
+  if(!Array.isArray(d.checklists)) d.checklists = seedChecklists();
+  d.checklists.forEach(l=>{
+    if(!l.id) l.id = uid('cl');
+    if(!Array.isArray(l.items)) l.items = [];
+    l.items.forEach(i=>{ if(!i.id) i.id = uid('ci'); i.done = !!i.done; if(typeof i.text!=='string') i.text=''; });
+  });
   return d;
 }
 
@@ -890,7 +943,7 @@ function ouvirMudancas(){
 window.addEventListener('beforeunload',()=>{ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} });
 
 // ====== RENDER ======
-function renderAll(){ renderTasks(); renderProjects(); renderInsights(); }
+function renderAll(){ renderTasks(); renderProjects(); renderChecklists(); renderInsights(); }
 
 function taskMatchesFilter(t){
   if(t.discarded) return false;                    // descartadas nunca aparecem
@@ -1223,6 +1276,138 @@ function renderProjects(){
       </div>`;
     card.onclick=()=>openPanel(p);
     grid.appendChild(card);
+  });
+}
+
+// ══════════════════ CHECKLISTS ══════════════════
+const _chkOpen = new Set();
+
+// lista inicial (a mesma que você usava no Trello) — só entra se ainda não existir nenhuma
+function seedChecklists(){
+  return [{
+    id: uid('cl'),
+    name: 'INSUMOS',
+    items: [
+      {id:uid('ci'), text:"Caern casa", done:false},
+      {id:uid('ci'), text:"Aluguel apto (pix 84 99707-6727) - R$ 650,00", done:false},
+      {id:uid('ci'), text:"Aluguel da garagem - R$ 200,00", done:false},
+      {id:uid('ci'), text:"Laninha", done:false},
+      {id:uid('ci'), text:"Cosern apto", done:false},
+      {id:uid('ci'), text:"Fatura da TIM", done:false},
+      {id:uid('ci'), text:"Internet apto", done:false},
+      {id:uid('ci'), text:"IPTU da casa de Parnamirim", done:false},
+      {id:uid('ci'), text:"Escola de Heitor", done:false},
+      {id:uid('ci'), text:"Escola de Helen", done:false},
+      {id:uid('ci'), text:"Unimed", done:false},
+      {id:uid('ci'), text:"Smartped (105006) - (Manutenção de software)", done:false},
+      {id:uid('ci'), text:"InovaFarma - (Manutenção de software)", done:false},
+      {id:uid('ci'), text:"Anhanguera (105004) - (Curso, treinamento, despesa c/viagem).", done:false},
+      {id:uid('ci'), text:"Coopefarma (entidades/mensalidade coopefarma)", done:false},
+      {id:uid('ci'), text:"Internet (107004) - (Telefone)", done:false},
+      {id:uid('ci'), text:"Suília (R$ 100,00 - dia 20 de cada mês - pix 84991159388) - Promoção e propaganda.", done:false},
+      {id:uid('ci'), text:"Sindicato (taxas e licenças)", done:false},
+      {id:uid('ci'), text:"CDL Currais Novos (entidades/mensalidade coopefarma)", done:false},
+      {id:uid('ci'), text:"Encargos sociais", done:false},
+      {id:uid('ci'), text:"Funcional (102003) - (Taxa de convênios terceirizados)", done:false},
+      {id:uid('ci'), text:"Portal da Drogaria (102003) - (Taxa de convênios terceirizados)", done:false},
+      {id:uid('ci'), text:"Cosern farmácia", done:false},
+      {id:uid('ci'), text:"DAS do mês anterior", done:false},
+      {id:uid('ci'), text:"Caern farmácia", done:false},
+      {id:uid('ci'), text:"Contador (pix 852.087.794-04) - R$ 697,00", done:false},
+      {id:uid('ci'), text:"Câmaras de segurança: R$ 120,00 / pix: pmgraco@hotmail.com (106003) - (Moto táxi - terceirizado)", done:false},
+      {id:uid('ci'), text:"🎯 Envio dos arquivos xml para o contador\n• ÁREA FISCAL > Consulta notas fiscais > Opções > Gerar/enviar xml > Marcar \"nota fiscal do consumidor eletrônica\", Tipo de Nota \"geral\", define as datas, Forma de geração do arquivo \"Gerar arquivo na pasta\", Local do arquivo \"a pasta onde se vai salvar os arquivos\"\n• Relatório fiscais > Opção 8 > Opção 21 > Opção 22", done:false}
+    ]
+  }];
+}
+
+function chkStats(l){
+  const itens = (l && Array.isArray(l.items)) ? l.items : [];
+  const total = itens.length, done = itens.filter(i=>i.done).length;
+  return {done, total, pct: total ? Math.round(done/total*100) : 0};
+}
+
+function atualizaChkCabecalho(card, l){
+  const st = chkStats(l);
+  const c = card.querySelector('.chk-count');
+  const p = card.querySelector('.chk-pct');
+  const b = card.querySelector('.chk-bar span');
+  if(c) c.textContent = st.done+'/'+st.total;
+  if(p) p.innerHTML = st.pct+'<small>%</small>';
+  if(b) b.style.width = st.pct+'%';
+}
+
+function renderChecklists(){
+  const grid = document.getElementById('chkGrid');
+  if(!grid) return;
+  if(!Array.isArray(state.checklists)) state.checklists = [];
+  grid.innerHTML = '';
+  if(!state.checklists.length){
+    grid.innerHTML = '<div class="chk-empty">Nenhuma lista ainda. Clique em “+ Nova lista” para criar a primeira.</div>';
+    return;
+  }
+  state.checklists.forEach(l=>{
+    if(!Array.isArray(l.items)) l.items = [];
+    const st = chkStats(l);
+    const card = document.createElement('div');
+    card.className = 'chk-card' + (_chkOpen.has(l.id) ? ' open' : '');
+    card.dataset.chk = l.id;
+
+    const top = document.createElement('div'); top.className = 'chk-top';
+    top.innerHTML = '<span class="chk-caret">▶</span>'
+      + '<div class="chk-name">' + escapeHtml(l.name||'(sem nome)') + '</div>'
+      + '<div class="chk-count">' + st.done + '/' + st.total + '</div>'
+      + '<div class="chk-pct">' + st.pct + '<small>%</small></div>';
+    top.onclick = ()=>{ if(_chkOpen.has(l.id)) _chkOpen.delete(l.id); else _chkOpen.add(l.id); renderChecklists(); };
+
+    const bar = document.createElement('div'); bar.className = 'chk-bar';
+    bar.innerHTML = '<span style="width:' + st.pct + '%"></span>';
+
+    const body = document.createElement('div'); body.className = 'chk-body';
+
+    l.items.forEach((it, idx)=>{
+      const row = document.createElement('div'); row.className = 'chk-item';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!it.done;
+      const ta = document.createElement('textarea'); ta.rows = 1; ta.value = it.text||'';
+      ta.placeholder = 'Descreva o item…';
+      if(it.done) ta.classList.add('done-item');
+      cb.onchange = ()=>{ it.done = cb.checked; ta.classList.toggle('done-item', it.done); atualizaChkCabecalho(card, l); save(); };
+      ta.oninput = ()=>{ it.text = ta.value; autoGrow(ta); save(); };
+      ta.onkeydown = e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ta.blur(); } };
+      const del = document.createElement('button'); del.className = 'chk-del'; del.innerHTML = '✕'; del.title = 'Remover item';
+      del.onclick = ()=>{ l.items.splice(idx,1); renderChecklists(); save(); };
+      row.appendChild(cb); row.appendChild(ta); row.appendChild(del);
+      body.appendChild(row);
+    });
+
+    const add = document.createElement('button'); add.className = 'chk-add'; add.textContent = '+ Adicionar item';
+    add.onclick = ()=>{
+      l.items.push({id:uid('ci'), text:'', done:false});
+      _chkOpen.add(l.id); renderChecklists(); save();
+      const tas = document.querySelectorAll('[data-chk="' + l.id + '"] .chk-item textarea');
+      if(tas.length) tas[tas.length-1].focus();
+    };
+
+    const foot = document.createElement('div'); foot.className = 'chk-foot';
+    const reset = document.createElement('button'); reset.textContent = '↺ Desmarcar tudo';
+    reset.onclick = ()=>{
+      if(!l.items.length) return;
+      if(!confirm('Desmarcar todos os itens de "' + (l.name||'') + '"?')) return;
+      l.items.forEach(i=>i.done=false); renderChecklists(); save();
+    };
+    const ren = document.createElement('button'); ren.textContent = '✎ Renomear';
+    ren.onclick = ()=>{ const n = prompt('Nome da lista:', l.name||''); if(n===null) return; l.name = n.trim()||l.name; renderChecklists(); save(); };
+    const exc = document.createElement('button'); exc.className = 'danger'; exc.textContent = '🗑 Excluir lista';
+    exc.onclick = ()=>{
+      if(!confirm('Excluir a lista "' + (l.name||'') + '" e todos os seus itens?')) return;
+      state.checklists = state.checklists.filter(x=>x.id!==l.id);
+      _chkOpen.delete(l.id); renderChecklists(); save();
+    };
+    foot.appendChild(reset); foot.appendChild(ren); foot.appendChild(exc);
+
+    body.appendChild(add); body.appendChild(foot);
+    card.appendChild(top); card.appendChild(bar); card.appendChild(body);
+    grid.appendChild(card);
+    if(_chkOpen.has(l.id)) body.querySelectorAll('textarea').forEach(autoGrow);
   });
 }
 
@@ -1655,6 +1840,16 @@ function addTask(){
 document.getElementById('addTaskBtn').onclick=addTask;
 document.getElementById('addQuick').onclick=addTask;
 
+document.getElementById('addChkBtn').onclick=()=>{
+  const name=prompt('Nome da nova lista (ex.: INSUMOS, Fechamento do mês):');
+  if(!name || !name.trim())return;
+  if(!Array.isArray(state.checklists))state.checklists=[];
+  const l={id:uid('cl'),name:name.trim(),items:[]};
+  state.checklists.push(l);
+  _chkOpen.add(l.id);
+  renderChecklists();save();
+};
+
 document.getElementById('addProjBtn').onclick=()=>{
   const name=prompt('Nome do novo projeto estratégico:');
   if(!name)return;
@@ -1707,6 +1902,13 @@ document.getElementById('exportBtn').onclick=()=>{
   if(nRows.length){const ws5=XLSX.utils.json_to_sheet(nRows);ws5['!cols']=[{wch:24},{wch:12},{wch:12},{wch:50}];XLSX.utils.book_append_sheet(wb,ws5,'Notas e Marcos');}
 
   const d=new Date();const p=n=>String(n).padStart(2,'0');
+  // Checklists
+  const cRows=[];
+  (state.checklists||[]).forEach(l=>(l.items||[]).forEach(i=>{
+    cRows.push({Lista:l.name||'', Item:(i.text||'').replace(/\n/g,' | '), Status:i.done?'Feito':'Pendente'});
+  }));
+  if(cRows.length){const ws6=XLSX.utils.json_to_sheet(cRows);ws6['!cols']=[{wch:22},{wch:70},{wch:11}];XLSX.utils.book_append_sheet(wb,ws6,'Checklists');}
+
   XLSX.writeFile(wb,`Plano_de_Trabalho_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.xlsx`);
 };
 
