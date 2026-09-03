@@ -488,14 +488,20 @@
             width:min(340px,88vw);text-align:center;box-shadow:0 26px 64px rgba(0,0,0,.6)}
   .gate-box h1{font-family:'Poppins',sans-serif;font-size:18px;font-weight:600;color:var(--txt);margin-bottom:3px}
   .gate-box p{font-size:12.5px;color:var(--txt-dim);margin-bottom:20px}
-  .gate-box input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:13px;font:inherit;
-                  font-size:20px;text-align:center;letter-spacing:8px;outline:none;
+  .gate-box input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 13px;font:inherit;
+                  font-size:14.5px;text-align:left;letter-spacing:normal;outline:none;
                   background:var(--panel-2);color:var(--txt)}
+  .gate-box input::placeholder{color:var(--txt-faint);letter-spacing:normal}
   .gate-box input:focus{border-color:var(--teal)}
   .gate-box button{width:100%;margin-top:13px;background:var(--green);color:var(--dark-on-light);border:none;border-radius:10px;
                    padding:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
   .gate-box button:hover{background:var(--green-dark)}
   .gate-msg{min-height:17px;margin-top:10px;font-size:12px;font-weight:600;color:#ff8b7d}
+  .gate-box input+input{margin-top:9px}
+  .gate-dica{margin-top:14px;font-size:11.5px;color:var(--txt-faint);line-height:1.5}
+  .sair-btn{background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:20px;
+    color:var(--txt-dim);font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 11px;cursor:pointer}
+  .sair-btn:hover{color:var(--txt);border-color:rgba(255,255,255,.4)}
 
 
   /* ══════════ CHECKLISTS (estilo Trello) ══════════ */
@@ -581,9 +587,11 @@
   <div class="gate-box">
     <h1>Plano de Trabalho</h1>
     <p>Drogaria Florânia — acesso restrito</p>
-    <input id="gateInput" type="password" inputmode="numeric" maxlength="12" placeholder="••••" autocomplete="off">
+    <input id="gateEmail" type="email" placeholder="E-mail" autocomplete="username" spellcheck="false">
+    <input id="gateInput" type="password" placeholder="Senha" autocomplete="current-password">
     <button id="gateBtn">Entrar</button>
     <div class="gate-msg" id="gateMsg"></div>
+    <div class="gate-dica">Login do Supabase. Esqueceu a senha? Troque em Supabase → Authentication → Users.</div>
   </div>
 </div>
 
@@ -603,6 +611,7 @@
       <div class="g2" id="dateStr">—</div>
     </div>
     <div class="sync" id="syncPill" title="Sincronização com o Supabase"><span class="dot"></span><span id="syncTxt">Conectando…</span></div>
+    <button class="sair-btn" id="sairBtn" title="Sair da conta" style="display:none">Sair</button>
     <div class="clock" id="clock">—</div>
   </div>
 </div>
@@ -977,6 +986,8 @@ async function snapshotDiario(origem){
 let _canal=null;
 function ouvirMudancas(){
   if(!sb || _canal) return;
+  // com RLS ligado o realtime precisa do token da sessão
+  try{ sb.auth.getSession().then(r=>{ const t=r&&r.data&&r.data.session&&r.data.session.access_token; if(t&&sb.realtime&&sb.realtime.setAuth) sb.realtime.setAuth(t); }); }catch(e){}
   _canal = sb.channel('pt_estado_live')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'pt_estado'}, payload=>{
       const novo=payload.new;
@@ -2149,30 +2160,87 @@ function tick(){
 tick();setInterval(tick,1000);
 
 // ══════════════════ SENHA DE ENTRADA ══════════════════
-const SENHA    = '1234';
-const GATE_KEY = 'plano_trabalho_ok';
+// ══════════════════ LOGIN (Supabase Auth) ══════════════════
+// A senha fixa saiu: agora é login de verdade, e as tabelas pt_* estão com RLS,
+// então sem sessão a API do Supabase não devolve nada.
+const GATE_KEY = 'plano_trabalho_ok';   // resquício da senha antiga — limpo abaixo
+try{ localStorage.removeItem(GATE_KEY); }catch(e){}
 
-function abrirApp(){
+// Este Supabase é o mesmo do CotaCoop e tem outros usuários. Quem pode abrir o
+// Plano de Trabalho é só quem estiver nesta lista — a trava de verdade é o RLS
+// no banco (função pt_pode()); isto aqui é só para a mensagem ficar clara.
+const EMAILS_OK = ['drogariaflorania@yahoo.com.br'];
+function emailLiberado(e){ return EMAILS_OK.indexOf((e||'').trim().toLowerCase()) >= 0; }
+
+function abrirApp(email){
   document.getElementById('gate').classList.add('hide');
+  const b=document.getElementById('sairBtn');
+  if(b){ b.style.display=''; b.title = email ? ('Sair ('+email+')') : 'Sair da conta'; }
   if(!window._appIniciado){ window._appIniciado=true; load(); }
 }
-function checarSenha(){
-  const i=document.getElementById('gateInput'), m=document.getElementById('gateMsg');
-  if((i.value||'').trim()===SENHA){
-    try{ localStorage.setItem(GATE_KEY,'1'); }catch(e){}
-    m.textContent=''; abrirApp();
-  }else{
-    m.textContent='Senha incorreta.'; i.value=''; i.focus();
+
+function mostrarLogin(msg){
+  document.getElementById('gate').classList.remove('hide');
+  const b=document.getElementById('sairBtn'); if(b) b.style.display='none';
+  const m=document.getElementById('gateMsg'); if(m) m.textContent=msg||'';
+  setTimeout(()=>{
+    const e=document.getElementById('gateEmail'), p=document.getElementById('gateInput');
+    if(e && !e.value) e.focus(); else if(p) p.focus();
+  },120);
+}
+
+async function fazerLogin(){
+  const e=document.getElementById('gateEmail'), i=document.getElementById('gateInput');
+  const m=document.getElementById('gateMsg'), b=document.getElementById('gateBtn');
+  const email=(e.value||'').trim(), senha=i.value||'';
+  if(!email || !senha){ m.textContent='Preencha e-mail e senha.'; return; }
+  if(!sb){ m.textContent='Sem conexão com o servidor. Tente de novo em instantes.'; return; }
+  b.disabled=true; b.textContent='Entrando…'; m.textContent='';
+  try{
+    const {data,error} = await sb.auth.signInWithPassword({email, password:senha});
+    if(error){
+      m.textContent = /Email not confirmed/i.test(error.message||'')
+        ? 'E-mail ainda não confirmado no Supabase.'
+        : 'E-mail ou senha incorretos.';
+      i.value=''; i.focus();
+      return;
+    }
+    i.value='';
+    const emailLogado = data && data.user ? data.user.email : '';
+    if(!emailLiberado(emailLogado)){
+      await sb.auth.signOut();
+      m.textContent = 'Este login não tem acesso ao Plano de Trabalho.';
+      return;
+    }
+    abrirApp(emailLogado);
+  }catch(err){
+    m.textContent='Não foi possível entrar agora. Verifique a internet.';
+  }finally{
+    b.disabled=false; b.textContent='Entrar';
   }
 }
-document.getElementById('gateBtn').onclick=checarSenha;
-document.getElementById('gateInput').addEventListener('keydown',e=>{ if(e.key==='Enter') checarSenha(); });
 
-if(localStorage.getItem(GATE_KEY)==='1'){
-  abrirApp();
-}else{
-  setTimeout(()=>{ const i=document.getElementById('gateInput'); if(i) i.focus(); },120);
+async function fazerLogout(){
+  if(!confirm('Sair da conta neste aparelho?')) return;
+  try{ await sb.auth.signOut(); }catch(e){}
+  location.reload();
 }
+
+document.getElementById('gateBtn').onclick=fazerLogin;
+document.getElementById('gateEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('gateInput').focus(); });
+document.getElementById('gateInput').addEventListener('keydown',e=>{ if(e.key==='Enter') fazerLogin(); });
+const _sairBtn=document.getElementById('sairBtn'); if(_sairBtn) _sairBtn.onclick=fazerLogout;
+
+(async ()=>{
+  if(!sb){ mostrarLogin('Não foi possível falar com o servidor.'); return; }
+  try{
+    const {data} = await sb.auth.getSession();
+    const em = (data && data.session && data.session.user) ? data.session.user.email : '';
+    if(data && data.session && emailLiberado(em)){ abrirApp(em); }
+    else if(data && data.session){ await sb.auth.signOut(); mostrarLogin('Este login não tem acesso ao Plano de Trabalho.'); }
+    else { mostrarLogin(); }
+  }catch(e){ mostrarLogin(); }
+})();
 </script>
 </body>
 </html>
