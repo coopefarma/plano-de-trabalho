@@ -569,9 +569,14 @@
   .nt-item textarea:focus{background:var(--board);box-shadow:0 0 0 1.5px var(--a-coopefarma);border-radius:7px}
   .nt-item .nt-edit,.nt-item .nt-copy,.nt-item .nt-del,.nt-item .nt-mv{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;
     font-size:13px;padding:0 2px;flex:none;line-height:1.5}
-  .nt-item .nt-mv{font-size:10px;padding:0 1px}
-  .nt-item .nt-mv:disabled{opacity:.25;cursor:default}
-  .nt-item .nt-edit:hover,.nt-item .nt-copy:hover,.nt-item .nt-mv:not(:disabled):hover{color:var(--a-coopefarma)}
+  .nt-item .nt-edit:hover,.nt-item .nt-copy:hover{color:var(--a-coopefarma)}
+  .nt-grip{color:var(--txt-faint);cursor:grab;font-size:15px;line-height:1.4;user-select:none;flex:none;
+    padding:0 2px;touch-action:none}
+  .nt-grip:hover{color:var(--a-coopefarma)}
+  .nt-grip:active{cursor:grabbing}
+  .nt-item.arrastando{background:var(--hover);border-radius:8px;
+    box-shadow:0 8px 20px rgba(2,7,18,.6);opacity:.95;position:relative;z-index:5}
+  .nt-item.arrastando .nt-grip{cursor:grabbing;color:var(--a-coopefarma)}
   .nt-item .nt-del:hover{color:var(--p-alta)}
   .nt-dica{font-size:11.5px;color:var(--txt-faint);margin:2px 0 6px}
   .nt-add{margin-top:11px;width:100%;padding:9px;background:var(--panel-2);border:1px dashed var(--line);
@@ -1511,17 +1516,58 @@ function notasVisiveis(n){
   return idx.filter(i => alvo.every(p => semAcento(n.items[i].text).indexOf(p) >= 0));
 }
 
-// sobe (dir=-1) ou desce (dir=+1) uma anotação, trocando com a vizinha VISÍVEL
-function moverNota(n, idx, dir){
-  const vis = notasVisiveis(n);
-  const pos = vis.indexOf(idx);
-  if(pos < 0) return;
-  const destino = pos + dir;
-  if(destino < 0 || destino >= vis.length) return;
-  const j = vis[destino];
-  const item = n.items.splice(idx,1)[0];
-  n.items.splice(j, 0, item);
-  renderNotas(); save();
+// arrastar a anotação pela alcinha ⠿ (funciona com mouse e com o dedo)
+function arrastarNota(ev, n, row, body, alca){
+  if(ev.button && ev.button !== 0) return;
+  ev.preventDefault();
+  try{ alca.setPointerCapture(ev.pointerId); }catch(e){}
+  row.classList.add('arrastando');
+  let ultimoY = ev.clientY;
+  const linhas = ()=> Array.prototype.slice.call(body.querySelectorAll('.nt-item'))
+                        .filter(r => r !== row && r.style.display !== 'none');
+
+  function recolocar(y){
+    const irmas = linhas();
+    let antes = null;
+    for(let k=0;k<irmas.length;k++){
+      const rc = irmas[k].getBoundingClientRect();
+      if(y < rc.top + rc.height/2){ antes = irmas[k]; break; }
+    }
+    if(antes){ body.insertBefore(row, antes); }
+    else if(irmas.length){ body.insertBefore(row, irmas[irmas.length-1].nextSibling); }
+  }
+
+  // rola a página sozinho quando o dedo/ponteiro chega perto da borda
+  const rolagem = setInterval(()=>{
+    const margem = 90;
+    if(ultimoY < margem) window.scrollBy(0, -14);
+    else if(ultimoY > window.innerHeight - margem) window.scrollBy(0, 14);
+    else return;
+    recolocar(ultimoY);
+  }, 40);
+
+  function mover(e2){
+    if(e2.pointerId !== undefined && e2.pointerId !== ev.pointerId) return;
+    if(e2.cancelable) e2.preventDefault();
+    ultimoY = e2.clientY; recolocar(ultimoY);
+  }
+
+  function soltar(e2){
+    if(e2 && e2.pointerId !== undefined && e2.pointerId !== ev.pointerId) return;
+    clearInterval(rolagem);
+    window.removeEventListener('pointermove', mover, true);
+    window.removeEventListener('pointerup', soltar, true);
+    window.removeEventListener('pointercancel', soltar, true);
+    row.classList.remove('arrastando');
+    // a ordem que ficou na tela vira a ordem dos dados
+    const ordem = Array.prototype.slice.call(body.querySelectorAll('.nt-item')).map(r => r.dataset.it);
+    n.items.sort((a,b) => ordem.indexOf(a.id) - ordem.indexOf(b.id));
+    renderNotas(); save();
+  }
+
+  window.addEventListener('pointermove', mover, true);
+  window.addEventListener('pointerup', soltar, true);
+  window.addEventListener('pointercancel', soltar, true);
 }
 
 function renderNotas(){
@@ -1553,7 +1599,7 @@ function renderNotas(){
     busca.oninput = ()=>{ _ntBusca[n.id] = busca.value; filtrarNotas(card, busca.value); };
     const nada = document.createElement('div'); nada.className = 'nt-nada'; nada.textContent = 'Nada encontrado com esse termo.';
     const dica = document.createElement('div'); dica.className = 'nt-dica';
-    dica.textContent = '▲▼ mover · ✎ editar · ⧉ copiar · ✕ remover — também dá para clicar no texto e digitar direto.';
+    dica.textContent = '⠿ arraste para reordenar · ✎ editar · ⧉ copiar · ✕ remover — também dá para clicar no texto e digitar direto.';
     body.appendChild(busca); body.appendChild(nada); body.appendChild(dica);
 
     n.items.forEach((it, idx)=>{
@@ -1561,14 +1607,9 @@ function renderNotas(){
       const ta = document.createElement('textarea'); ta.rows = 1; ta.value = it.text||'';
       ta.placeholder = 'Anotação…';
       ta.oninput = ()=>{ it.text = ta.value; autoGrow(ta); save(); };
-      const vis = notasVisiveis(n);
-      const posVis = vis.indexOf(idx);
-      const cima = document.createElement('button'); cima.className = 'nt-mv'; cima.innerHTML = '▲'; cima.title = 'Subir';
-      cima.disabled = (posVis <= 0);
-      cima.onclick = ()=> moverNota(n, idx, -1);
-      const baixo = document.createElement('button'); baixo.className = 'nt-mv'; baixo.innerHTML = '▼'; baixo.title = 'Descer';
-      baixo.disabled = (posVis < 0 || posVis >= vis.length-1);
-      baixo.onclick = ()=> moverNota(n, idx, +1);
+      const alca = document.createElement('div'); alca.className = 'nt-grip'; alca.textContent = '⠿';
+      alca.title = 'Arraste para mudar a ordem';
+      alca.addEventListener('pointerdown', e2 => arrastarNota(e2, n, row, body, alca));
       const edt = document.createElement('button'); edt.className = 'nt-edit'; edt.innerHTML = '✎'; edt.title = 'Editar';
       edt.onclick = ()=>{ ta.focus(); const n2=(ta.value||'').length; try{ ta.setSelectionRange(n2,n2); }catch(e){} autoGrow(ta); };
       const cop = document.createElement('button'); cop.className = 'nt-copy'; cop.innerHTML = '⧉'; cop.title = 'Copiar';
@@ -1580,7 +1621,8 @@ function renderNotas(){
       };
       const del = document.createElement('button'); del.className = 'nt-del'; del.innerHTML = '✕'; del.title = 'Remover';
       del.onclick = ()=>{ if(!confirm('Remover esta anotação?')) return; n.items.splice(idx,1); renderNotas(); save(); };
-      row.appendChild(ta); row.appendChild(cima); row.appendChild(baixo);
+      row.dataset.it = it.id;
+      row.appendChild(alca); row.appendChild(ta);
       row.appendChild(edt); row.appendChild(cop); row.appendChild(del);
       body.appendChild(row);
     });
