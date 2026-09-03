@@ -565,10 +565,13 @@
     line-height:1.55;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;padding:0;outline:none}
   .nt-card.oculto .nt-item textarea{filter:blur(4.5px)}
   .nt-card.oculto .nt-item textarea:focus{filter:none}
-  .nt-item .nt-copy,.nt-item .nt-del{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;
+  .nt-item textarea:hover{background:rgba(124,184,255,.06);border-radius:7px}
+  .nt-item textarea:focus{background:var(--board);box-shadow:0 0 0 1.5px var(--a-coopefarma);border-radius:7px}
+  .nt-item .nt-edit,.nt-item .nt-copy,.nt-item .nt-del{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;
     font-size:13px;padding:0 2px;flex:none;line-height:1.5}
-  .nt-item .nt-copy:hover{color:var(--a-coopefarma)}
+  .nt-item .nt-edit:hover,.nt-item .nt-copy:hover{color:var(--a-coopefarma)}
   .nt-item .nt-del:hover{color:var(--p-alta)}
+  .nt-dica{font-size:11.5px;color:var(--txt-faint);margin:2px 0 6px}
   .nt-add{margin-top:11px;width:100%;padding:9px;background:var(--panel-2);border:1px dashed var(--line);
     border-radius:9px;color:var(--txt-dim);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
   .nt-add:hover{border-color:var(--a-coopefarma);color:var(--a-coopefarma);background:rgba(124,184,255,.12)}
@@ -1523,13 +1526,17 @@ function renderNotas(){
     busca.placeholder = '🔎 Buscar nesta lista…';
     busca.oninput = ()=> filtrarNotas(card, busca.value);
     const nada = document.createElement('div'); nada.className = 'nt-nada'; nada.textContent = 'Nada encontrado com esse termo.';
-    body.appendChild(busca); body.appendChild(nada);
+    const dica = document.createElement('div'); dica.className = 'nt-dica';
+    dica.textContent = '✎ editar · ⧉ copiar · ✕ remover — também dá para clicar no texto e digitar direto.';
+    body.appendChild(busca); body.appendChild(nada); body.appendChild(dica);
 
     n.items.forEach((it, idx)=>{
       const row = document.createElement('div'); row.className = 'nt-item';
       const ta = document.createElement('textarea'); ta.rows = 1; ta.value = it.text||'';
       ta.placeholder = 'Anotação…';
       ta.oninput = ()=>{ it.text = ta.value; autoGrow(ta); save(); };
+      const edt = document.createElement('button'); edt.className = 'nt-edit'; edt.innerHTML = '✎'; edt.title = 'Editar';
+      edt.onclick = ()=>{ ta.focus(); const n2=(ta.value||'').length; try{ ta.setSelectionRange(n2,n2); }catch(e){} autoGrow(ta); };
       const cop = document.createElement('button'); cop.className = 'nt-copy'; cop.innerHTML = '⧉'; cop.title = 'Copiar';
       cop.onclick = ()=>{
         const t = it.text||'';
@@ -1539,7 +1546,7 @@ function renderNotas(){
       };
       const del = document.createElement('button'); del.className = 'nt-del'; del.innerHTML = '✕'; del.title = 'Remover';
       del.onclick = ()=>{ if(!confirm('Remover esta anotação?')) return; n.items.splice(idx,1); renderNotas(); save(); };
-      row.appendChild(ta); row.appendChild(cop); row.appendChild(del);
+      row.appendChild(ta); row.appendChild(edt); row.appendChild(cop); row.appendChild(del);
       body.appendChild(row);
     });
 
@@ -1561,6 +1568,18 @@ function renderNotas(){
       n.items = novas.concat(n.items);
       renderNotas(); save();
     };
+    const limpar = document.createElement('button'); limpar.textContent = '🧹 Limpar marcadores';
+    limpar.title = 'Tira os ✅ e os "white_check_mark" que vieram colados do Trello';
+    limpar.onclick = ()=>{
+      const tira = t => (t||'')
+        .replace(/^[\s\u200b]*(?:white_check_mark|ballot_box_with_check|heavy_check_mark)\s*/i,'')
+        .replace(/^[\s\u200b]*[\u2705\u2611\u2714\u2713\uFE0F\u25AA\u25CF\u2022-]+\s*/,'')
+        .trim();
+      let n2 = 0;
+      n.items.forEach(i=>{ const novo = tira(i.text); if(novo !== i.text){ i.text = novo; n2++; } });
+      if(!n2){ alert('Nada para limpar nesta lista.'); return; }
+      renderNotas(); save();
+    };
     const olho = document.createElement('button');
     olho.textContent = _ntOculto.has(n.id) ? '👁 Mostrar' : '🙈 Ocultar';
     olho.onclick = ()=>{ if(_ntOculto.has(n.id)) _ntOculto.delete(n.id); else _ntOculto.add(n.id); renderNotas(); };
@@ -1572,7 +1591,7 @@ function renderNotas(){
       state.notas = state.notas.filter(x=>x.id!==n.id);
       _ntOpen.delete(n.id); renderNotas(); save();
     };
-    foot.appendChild(colar); foot.appendChild(olho); foot.appendChild(ren); foot.appendChild(exc);
+    foot.appendChild(colar); foot.appendChild(limpar); foot.appendChild(olho); foot.appendChild(ren); foot.appendChild(exc);
 
     body.appendChild(add); body.appendChild(foot);
     card.appendChild(top); card.appendChild(body);
