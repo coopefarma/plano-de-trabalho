@@ -534,6 +534,44 @@
   .chk-foot button:hover{background:var(--panel-2);color:var(--txt)}
   .chk-foot button.danger:hover{color:var(--p-alta);border-color:var(--p-alta)}
   .chk-empty{color:var(--txt-faint);font-size:13px;padding:8px 2px}
+
+  /* ══════════ ANOTAÇÕES (consulta) ══════════ */
+  .nt-section{margin-top:26px}
+  #ntGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:13px;align-items:start}
+  @media(max-width:560px){#ntGrid{grid-template-columns:1fr}}
+  .nt-card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    box-shadow:var(--shadow);border-top:3px solid var(--a-coopefarma);overflow:hidden;max-width:820px}
+  .nt-top{display:flex;align-items:center;gap:9px;padding:14px 15px 12px;cursor:pointer;user-select:none}
+  .nt-top:hover{background:var(--hover)}
+  .nt-caret{color:var(--txt-faint);font-size:10px;transition:transform .15s;flex:none}
+  .nt-card.open .nt-caret{transform:rotate(90deg)}
+  .nt-name{font-family:'Poppins',sans-serif;font-size:15px;font-weight:600;flex:1;line-height:1.25;word-break:break-word}
+  .nt-count{font-size:12px;color:var(--txt-dim);white-space:nowrap}
+  .nt-body{display:none;padding:0 15px 14px}
+  .nt-card.open .nt-body{display:block}
+  .nt-search{width:100%;padding:9px 11px;background:var(--board);border:1px solid var(--line);border-radius:9px;
+    color:var(--txt);font-family:inherit;font-size:13px;outline:none;margin-bottom:6px}
+  .nt-search:focus{border-color:var(--a-coopefarma)}
+  .nt-search::placeholder{color:var(--txt-faint)}
+  .nt-nada{color:var(--txt-faint);font-size:12.5px;padding:8px 2px;display:none}
+  .nt-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .nt-item textarea{flex:1;background:transparent;border:none;color:var(--txt);font-family:inherit;font-size:13.5px;
+    line-height:1.55;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;padding:0;outline:none}
+  .nt-card.oculto .nt-item textarea{filter:blur(4.5px)}
+  .nt-card.oculto .nt-item textarea:focus{filter:none}
+  .nt-item .nt-copy,.nt-item .nt-del{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;
+    font-size:13px;padding:0 2px;flex:none;line-height:1.5}
+  .nt-item .nt-copy:hover{color:var(--a-coopefarma)}
+  .nt-item .nt-del:hover{color:var(--p-alta)}
+  .nt-add{margin-top:11px;width:100%;padding:9px;background:var(--panel-2);border:1px dashed var(--line);
+    border-radius:9px;color:var(--txt-dim);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .nt-add:hover{border-color:var(--a-coopefarma);color:var(--a-coopefarma);background:rgba(124,184,255,.12)}
+  .nt-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+  .nt-foot button{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--txt-dim);
+    font-size:11.5px;font-weight:600;padding:6px 10px;cursor:pointer;font-family:inherit}
+  .nt-foot button:hover{background:var(--panel-2);color:var(--txt)}
+  .nt-foot button.danger:hover{color:var(--p-alta);border-color:var(--p-alta)}
+  .nt-empty{color:var(--txt-faint);font-size:13px;padding:8px 2px}
 </style>
 </head>
 <body>
@@ -630,6 +668,15 @@
             <button class="btn sm" id="addChkBtn">+ Nova lista</button>
           </div>
           <div id="chkGrid"></div>
+        </div>
+
+        <!-- ANOTAÇÕES -->
+        <div class="nt-section">
+          <div class="chk-head-row">
+            <h2>📒 Anotações</h2>
+            <button class="btn sm" id="addNtBtn">+ Nova anotação</button>
+          </div>
+          <div id="ntGrid"></div>
         </div>
         <div class="backup-row">
           <div class="view-all" id="exportBtn">⬇ Exportar Excel</div>
@@ -807,6 +854,12 @@ function normalizeState(d){
   d.tasks.forEach(t=>{ setTaskStatus(t, taskStatus(t)); });
   // checklists: cria a lista inicial na primeira vez e conserta itens sem id
   if(!Array.isArray(d.checklists)) d.checklists = seedChecklists();
+  if(!Array.isArray(d.notas)) d.notas = [];
+  d.notas.forEach(n=>{
+    if(!n.id) n.id = uid('nl');
+    if(!Array.isArray(n.items)) n.items = [];
+    n.items.forEach(i=>{ if(!i.id) i.id = uid('nt'); if(typeof i.text!=='string') i.text=''; });
+  });
   d.checklists.forEach(l=>{
     if(!l.id) l.id = uid('cl');
     if(!Array.isArray(l.items)) l.items = [];
@@ -943,7 +996,7 @@ function ouvirMudancas(){
 window.addEventListener('beforeunload',()=>{ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} });
 
 // ====== RENDER ======
-function renderAll(){ renderTasks(); renderProjects(); renderChecklists(); renderInsights(); }
+function renderAll(){ renderTasks(); renderProjects(); renderChecklists(); renderNotas(); renderInsights(); }
 
 function taskMatchesFilter(t){
   if(t.discarded) return false;                    // descartadas nunca aparecem
@@ -1411,6 +1464,112 @@ function renderChecklists(){
   });
 }
 
+// ══════════════════ ANOTAÇÕES (consulta) ══════════════════
+const _ntOpen = new Set();
+const _ntOculto = new Set();
+
+function semAcento(t){
+  return (t||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+function filtrarNotas(card, termo){
+  const alvo = semAcento(termo).trim().split(/\s+/).filter(Boolean);
+  let achou = 0;
+  card.querySelectorAll('.nt-item').forEach(row=>{
+    const txt = semAcento(row.querySelector('textarea').value);
+    const bate = alvo.every(p=>txt.indexOf(p)>=0);
+    row.style.display = bate ? '' : 'none';
+    if(bate) achou++;
+  });
+  const nada = card.querySelector('.nt-nada');
+  if(nada) nada.style.display = (alvo.length && !achou) ? 'block' : 'none';
+}
+
+function renderNotas(){
+  const grid = document.getElementById('ntGrid');
+  if(!grid) return;
+  if(!Array.isArray(state.notas)) state.notas = [];
+  grid.innerHTML = '';
+  if(!state.notas.length){
+    grid.innerHTML = '<div class="nt-empty">Nenhuma anotação ainda. Clique em “+ Nova anotação” (ex.: Acessos, Telefones úteis).</div>';
+    return;
+  }
+  state.notas.forEach(n=>{
+    if(!Array.isArray(n.items)) n.items = [];
+    const card = document.createElement('div');
+    card.className = 'nt-card' + (_ntOpen.has(n.id)?' open':'') + (_ntOculto.has(n.id)?' oculto':'');
+    card.dataset.nt = n.id;
+
+    const top = document.createElement('div'); top.className = 'nt-top';
+    top.innerHTML = '<span class="nt-caret">▶</span>'
+      + '<div class="nt-name">' + escapeHtml(n.name||'(sem nome)') + '</div>'
+      + '<div class="nt-count">' + n.items.length + ' anotaç' + (n.items.length===1?'ão':'ões') + '</div>';
+    top.onclick = ()=>{ if(_ntOpen.has(n.id)) _ntOpen.delete(n.id); else _ntOpen.add(n.id); renderNotas(); };
+
+    const body = document.createElement('div'); body.className = 'nt-body';
+
+    const busca = document.createElement('input'); busca.className = 'nt-search'; busca.type = 'search';
+    busca.placeholder = '🔎 Buscar nesta lista…';
+    busca.oninput = ()=> filtrarNotas(card, busca.value);
+    const nada = document.createElement('div'); nada.className = 'nt-nada'; nada.textContent = 'Nada encontrado com esse termo.';
+    body.appendChild(busca); body.appendChild(nada);
+
+    n.items.forEach((it, idx)=>{
+      const row = document.createElement('div'); row.className = 'nt-item';
+      const ta = document.createElement('textarea'); ta.rows = 1; ta.value = it.text||'';
+      ta.placeholder = 'Anotação…';
+      ta.oninput = ()=>{ it.text = ta.value; autoGrow(ta); save(); };
+      const cop = document.createElement('button'); cop.className = 'nt-copy'; cop.innerHTML = '⧉'; cop.title = 'Copiar';
+      cop.onclick = ()=>{
+        const t = it.text||'';
+        if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t); }
+        else { ta.select(); try{ document.execCommand('copy'); }catch(e){} }
+        cop.innerHTML = '✓'; setTimeout(()=>{ cop.innerHTML = '⧉'; }, 1200);
+      };
+      const del = document.createElement('button'); del.className = 'nt-del'; del.innerHTML = '✕'; del.title = 'Remover';
+      del.onclick = ()=>{ if(!confirm('Remover esta anotação?')) return; n.items.splice(idx,1); renderNotas(); save(); };
+      row.appendChild(ta); row.appendChild(cop); row.appendChild(del);
+      body.appendChild(row);
+    });
+
+    const add = document.createElement('button'); add.className = 'nt-add'; add.textContent = '+ Adicionar anotação';
+    add.onclick = ()=>{
+      n.items.unshift({id:uid('nt'), text:''});
+      _ntOpen.add(n.id); renderNotas(); save();
+      const ta = document.querySelector('[data-nt="' + n.id + '"] .nt-item textarea');
+      if(ta) ta.focus();
+    };
+
+    const foot = document.createElement('div'); foot.className = 'nt-foot';
+    const colar = document.createElement('button'); colar.textContent = '📋 Colar várias';
+    colar.onclick = ()=>{
+      const txt = prompt('Cole aqui as linhas (uma anotação por linha):');
+      if(!txt) return;
+      const novas = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>({id:uid('nt'), text:l}));
+      if(!novas.length) return;
+      n.items = novas.concat(n.items);
+      renderNotas(); save();
+    };
+    const olho = document.createElement('button');
+    olho.textContent = _ntOculto.has(n.id) ? '👁 Mostrar' : '🙈 Ocultar';
+    olho.onclick = ()=>{ if(_ntOculto.has(n.id)) _ntOculto.delete(n.id); else _ntOculto.add(n.id); renderNotas(); };
+    const ren = document.createElement('button'); ren.textContent = '✎ Renomear';
+    ren.onclick = ()=>{ const v = prompt('Nome da anotação:', n.name||''); if(v===null) return; n.name = v.trim()||n.name; renderNotas(); save(); };
+    const exc = document.createElement('button'); exc.className = 'danger'; exc.textContent = '🗑 Excluir';
+    exc.onclick = ()=>{
+      if(!confirm('Excluir a anotação "' + (n.name||'') + '" e todo o conteúdo dela?')) return;
+      state.notas = state.notas.filter(x=>x.id!==n.id);
+      _ntOpen.delete(n.id); renderNotas(); save();
+    };
+    foot.appendChild(colar); foot.appendChild(olho); foot.appendChild(ren); foot.appendChild(exc);
+
+    body.appendChild(add); body.appendChild(foot);
+    card.appendChild(top); card.appendChild(body);
+    grid.appendChild(card);
+    if(_ntOpen.has(n.id)) body.querySelectorAll('textarea').forEach(autoGrow);
+  });
+}
+
 function renderInsights(){
   const total=state.tasks.length;
   const done=state.tasks.filter(t=>t.done).length;
@@ -1840,6 +1999,16 @@ function addTask(){
 document.getElementById('addTaskBtn').onclick=addTask;
 document.getElementById('addQuick').onclick=addTask;
 
+document.getElementById('addNtBtn').onclick=()=>{
+  const name=prompt('Nome da nova anotação (ex.: Acessos, Telefones úteis):');
+  if(!name || !name.trim())return;
+  if(!Array.isArray(state.notas))state.notas=[];
+  const n={id:uid('nl'),name:name.trim(),items:[]};
+  state.notas.push(n);
+  _ntOpen.add(n.id);
+  renderNotas();save();
+};
+
 document.getElementById('addChkBtn').onclick=()=>{
   const name=prompt('Nome da nova lista (ex.: INSUMOS, Fechamento do mês):');
   if(!name || !name.trim())return;
@@ -1908,6 +2077,13 @@ document.getElementById('exportBtn').onclick=()=>{
     cRows.push({Lista:l.name||'', Item:(i.text||'').replace(/\n/g,' | '), Status:i.done?'Feito':'Pendente'});
   }));
   if(cRows.length){const ws6=XLSX.utils.json_to_sheet(cRows);ws6['!cols']=[{wch:22},{wch:70},{wch:11}];XLSX.utils.book_append_sheet(wb,ws6,'Checklists');}
+
+  // Anotações
+  const nRows2=[];
+  (state.notas||[]).forEach(n=>(n.items||[]).forEach(i=>{
+    nRows2.push({Lista:n.name||'', 'Anotação':(i.text||'').replace(/\n/g,' | ')});
+  }));
+  if(nRows2.length){const ws7=XLSX.utils.json_to_sheet(nRows2);ws7['!cols']=[{wch:22},{wch:90}];XLSX.utils.book_append_sheet(wb,ws7,'Anotações');}
 
   XLSX.writeFile(wb,`Plano_de_Trabalho_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.xlsx`);
 };
