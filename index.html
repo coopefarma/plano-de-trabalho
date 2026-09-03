@@ -567,9 +567,11 @@
   .nt-card.oculto .nt-item textarea:focus{filter:none}
   .nt-item textarea:hover{background:rgba(124,184,255,.06);border-radius:7px}
   .nt-item textarea:focus{background:var(--board);box-shadow:0 0 0 1.5px var(--a-coopefarma);border-radius:7px}
-  .nt-item .nt-edit,.nt-item .nt-copy,.nt-item .nt-del{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;
+  .nt-item .nt-edit,.nt-item .nt-copy,.nt-item .nt-del,.nt-item .nt-mv{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;
     font-size:13px;padding:0 2px;flex:none;line-height:1.5}
-  .nt-item .nt-edit:hover,.nt-item .nt-copy:hover{color:var(--a-coopefarma)}
+  .nt-item .nt-mv{font-size:10px;padding:0 1px}
+  .nt-item .nt-mv:disabled{opacity:.25;cursor:default}
+  .nt-item .nt-edit:hover,.nt-item .nt-copy:hover,.nt-item .nt-mv:not(:disabled):hover{color:var(--a-coopefarma)}
   .nt-item .nt-del:hover{color:var(--p-alta)}
   .nt-dica{font-size:11.5px;color:var(--txt-faint);margin:2px 0 6px}
   .nt-add{margin-top:11px;width:100%;padding:9px;background:var(--panel-2);border:1px dashed var(--line);
@@ -1481,6 +1483,7 @@ function renderChecklists(){
 // ══════════════════ ANOTAÇÕES (consulta) ══════════════════
 const _ntOpen = new Set();
 const _ntOculto = new Set();
+const _ntBusca = {};   // termo de busca por lista, para não se perder no re-render
 
 function semAcento(t){
   return (t||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -1497,6 +1500,28 @@ function filtrarNotas(card, termo){
   });
   const nada = card.querySelector('.nt-nada');
   if(nada) nada.style.display = (alvo.length && !achou) ? 'block' : 'none';
+}
+
+// índices que estão aparecendo agora (considerando o filtro da busca)
+function notasVisiveis(n){
+  const termo = (_ntBusca[n.id]||'').trim();
+  const idx = n.items.map((it,i)=>i);
+  if(!termo) return idx;
+  const alvo = semAcento(termo).split(/\s+/).filter(Boolean);
+  return idx.filter(i => alvo.every(p => semAcento(n.items[i].text).indexOf(p) >= 0));
+}
+
+// sobe (dir=-1) ou desce (dir=+1) uma anotação, trocando com a vizinha VISÍVEL
+function moverNota(n, idx, dir){
+  const vis = notasVisiveis(n);
+  const pos = vis.indexOf(idx);
+  if(pos < 0) return;
+  const destino = pos + dir;
+  if(destino < 0 || destino >= vis.length) return;
+  const j = vis[destino];
+  const item = n.items.splice(idx,1)[0];
+  n.items.splice(j, 0, item);
+  renderNotas(); save();
 }
 
 function renderNotas(){
@@ -1524,10 +1549,11 @@ function renderNotas(){
 
     const busca = document.createElement('input'); busca.className = 'nt-search'; busca.type = 'search';
     busca.placeholder = '🔎 Buscar nesta lista…';
-    busca.oninput = ()=> filtrarNotas(card, busca.value);
+    busca.value = _ntBusca[n.id] || '';
+    busca.oninput = ()=>{ _ntBusca[n.id] = busca.value; filtrarNotas(card, busca.value); };
     const nada = document.createElement('div'); nada.className = 'nt-nada'; nada.textContent = 'Nada encontrado com esse termo.';
     const dica = document.createElement('div'); dica.className = 'nt-dica';
-    dica.textContent = '✎ editar · ⧉ copiar · ✕ remover — também dá para clicar no texto e digitar direto.';
+    dica.textContent = '▲▼ mover · ✎ editar · ⧉ copiar · ✕ remover — também dá para clicar no texto e digitar direto.';
     body.appendChild(busca); body.appendChild(nada); body.appendChild(dica);
 
     n.items.forEach((it, idx)=>{
@@ -1535,6 +1561,14 @@ function renderNotas(){
       const ta = document.createElement('textarea'); ta.rows = 1; ta.value = it.text||'';
       ta.placeholder = 'Anotação…';
       ta.oninput = ()=>{ it.text = ta.value; autoGrow(ta); save(); };
+      const vis = notasVisiveis(n);
+      const posVis = vis.indexOf(idx);
+      const cima = document.createElement('button'); cima.className = 'nt-mv'; cima.innerHTML = '▲'; cima.title = 'Subir';
+      cima.disabled = (posVis <= 0);
+      cima.onclick = ()=> moverNota(n, idx, -1);
+      const baixo = document.createElement('button'); baixo.className = 'nt-mv'; baixo.innerHTML = '▼'; baixo.title = 'Descer';
+      baixo.disabled = (posVis < 0 || posVis >= vis.length-1);
+      baixo.onclick = ()=> moverNota(n, idx, +1);
       const edt = document.createElement('button'); edt.className = 'nt-edit'; edt.innerHTML = '✎'; edt.title = 'Editar';
       edt.onclick = ()=>{ ta.focus(); const n2=(ta.value||'').length; try{ ta.setSelectionRange(n2,n2); }catch(e){} autoGrow(ta); };
       const cop = document.createElement('button'); cop.className = 'nt-copy'; cop.innerHTML = '⧉'; cop.title = 'Copiar';
@@ -1546,7 +1580,8 @@ function renderNotas(){
       };
       const del = document.createElement('button'); del.className = 'nt-del'; del.innerHTML = '✕'; del.title = 'Remover';
       del.onclick = ()=>{ if(!confirm('Remover esta anotação?')) return; n.items.splice(idx,1); renderNotas(); save(); };
-      row.appendChild(ta); row.appendChild(edt); row.appendChild(cop); row.appendChild(del);
+      row.appendChild(ta); row.appendChild(cima); row.appendChild(baixo);
+      row.appendChild(edt); row.appendChild(cop); row.appendChild(del);
       body.appendChild(row);
     });
 
@@ -1580,6 +1615,14 @@ function renderNotas(){
       if(!n2){ alert('Nada para limpar nesta lista.'); return; }
       renderNotas(); save();
     };
+    const az = document.createElement('button'); az.textContent = '🔤 Ordenar A→Z';
+    az.title = 'Coloca as anotações em ordem alfabética (dá para desfazer no Restaurar backup)';
+    az.onclick = ()=>{
+      if(n.items.length < 2) return;
+      if(!confirm('Colocar as ' + n.items.length + ' anotações em ordem alfabética?\nA ordem atual se perde.')) return;
+      n.items.sort((a,b)=> semAcento(a.text).localeCompare(semAcento(b.text), 'pt-BR'));
+      renderNotas(); save();
+    };
     const olho = document.createElement('button');
     olho.textContent = _ntOculto.has(n.id) ? '👁 Mostrar' : '🙈 Ocultar';
     olho.onclick = ()=>{ if(_ntOculto.has(n.id)) _ntOculto.delete(n.id); else _ntOculto.add(n.id); renderNotas(); };
@@ -1591,12 +1634,14 @@ function renderNotas(){
       state.notas = state.notas.filter(x=>x.id!==n.id);
       _ntOpen.delete(n.id); renderNotas(); save();
     };
-    foot.appendChild(colar); foot.appendChild(limpar); foot.appendChild(olho); foot.appendChild(ren); foot.appendChild(exc);
+    foot.appendChild(colar); foot.appendChild(limpar); foot.appendChild(az);
+    foot.appendChild(olho); foot.appendChild(ren); foot.appendChild(exc);
 
     body.appendChild(add); body.appendChild(foot);
     card.appendChild(top); card.appendChild(body);
     grid.appendChild(card);
     if(_ntOpen.has(n.id)) body.querySelectorAll('textarea').forEach(autoGrow);
+    if((_ntBusca[n.id]||'').trim()) filtrarNotas(card, _ntBusca[n.id]);
   });
 }
 
