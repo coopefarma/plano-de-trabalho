@@ -436,7 +436,7 @@
   /* quadro */
   .board{display:flex;gap:12px;align-items:flex-start;overflow-x:auto;padding-bottom:10px;
          scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.45) transparent}
-  .board > .bcol{flex:0 0 288px;width:288px}
+  .board > .bcol{flex:0 0 272px;width:272px}
   @media(max-width:1100px){.board{flex-direction:column;align-items:stretch;overflow-x:visible}
                            .board > .bcol{flex:none;width:auto}}
   .bcol{background:rgba(10,27,58,.90);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 10px 12px;
@@ -690,6 +690,14 @@
             </div>
             <div class="bcol-body" id="col-exec"></div>
           </div>
+          <div class="bcol" data-col="concluida">
+            <div class="bcol-head">
+              <span class="bcol-dot" style="background:var(--teal)"></span>
+              <span class="bcol-title">Concluído</span>
+              <span class="bcol-count" id="c-concluida">0</span>
+            </div>
+            <div class="bcol-body" id="col-concluida"></div>
+          </div>
           <div class="bcol" data-col="arquivada">
             <div class="bcol-head">
               <span class="bcol-dot" style="background:var(--txt-faint)"></span>
@@ -895,6 +903,7 @@ function todayISO(){const d=new Date();const p=n=>String(n).padStart(2,'0');retu
 const COLS = {
   inbox:     {label:'Caixa de Entrada', icone:'📥'},
   exec:      {label:'Em Execução',      icone:'⚡'},
+  concluida: {label:'Concluído',        icone:'✅'},
   arquivada: {label:'Arquivadas',       icone:'📦'},
   nota:      {label:'Anotações',        icone:'📝'},
 };
@@ -1142,6 +1151,8 @@ function moveTask(dragId, col, antesDoId){
   const to = antesDoId ? state.tasks.findIndex(x=>x.id===antesDoId) : -1;
   if(to<0) state.tasks.push(t); else state.tasks.splice(to,0,t);
   if(mudouColuna && col==='exec' && !t.iniciadaEm) t.iniciadaEm=new Date().toISOString();
+  if(mudouColuna && col==='concluida' && !t.done){ t.done=true; syncTaskToProject(t); }
+  else if(mudouColuna && (col==='exec' || col==='inbox') && t.done){ t.done=false; syncTaskToProject(t); }
   renderAll(); save();
 }
 
@@ -1184,6 +1195,7 @@ function renderTasks(){
   const vazio={
     inbox:'Nada na caixa de entrada.<br>Use <b>+ Adicionar tarefa</b> aqui embaixo.',
     exec:'Arraste para cá o que você<br>já começou a tratar.',
+    concluida:'Marque o ✓ de um card<br>e ele vem para cá.',
     arquivada:'Nada arquivado ainda.',
     nota:'Registre aqui suas anotações.<br>Use <b>+ Adicionar anotação</b>.'
   };
@@ -1197,7 +1209,7 @@ function renderTasks(){
     const shown = (col==='nota') ? daColuna : daColuna.filter(taskMatchesFilter);
     if(!shown.length){
       const e=document.createElement('div'); e.className='bcol-empty';
-      e.innerHTML = daColuna.length ? 'Nenhuma tarefa neste filtro.' : vazio[col];
+      e.innerHTML = '<div>' + (daColuna.length ? 'Nenhuma tarefa neste filtro.' : vazio[col]) + '</div>';
       body.appendChild(e);
       return;
     }
@@ -1224,7 +1236,13 @@ function buildTaskCard(t,col){
 
   const ck=document.createElement('div'); ck.className='t-check'+(t.done?' on':'');
   ck.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#08152e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-  ck.onclick=()=>{t.done=!t.done;syncTaskToProject(t);reorderTask(t);renderAll();save();};
+  ck.onclick=()=>{
+    t.done=!t.done;
+    const st=taskStatus(t);
+    if(t.done && (st==='exec' || st==='inbox')) setTaskStatus(t,'concluida');
+    else if(!t.done && st==='concluida') setTaskStatus(t,'exec');
+    syncTaskToProject(t);reorderTask(t);renderAll();save();
+  };
 
   const body=document.createElement('div'); body.className='t-body';
   const ehNota = (col==='nota');
