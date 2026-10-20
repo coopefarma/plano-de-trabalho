@@ -46,9 +46,14 @@
 
   body{
     font-family:'Inter',sans-serif;
-    background:var(--bg);
-    background-image:radial-gradient(1100px 620px at 18% -8%, #0d2a55 0%, transparent 62%),
-                     radial-gradient(900px 520px at 92% 0%, #10305f 0%, transparent 58%);
+    background:#3f86a0;
+    /* fundo estilo Trello — água azul com ondas concêntricas.
+       Para usar uma foto: troque por  background-image:url('fundo.jpg'); background-size:cover; */
+    background-image:
+      radial-gradient(ellipse 34% 22% at 52% 64%, rgba(10,40,58,.55) 0%, rgba(10,40,58,0) 70%),
+      repeating-radial-gradient(ellipse 100% 62% at 52% 64%, rgba(255,255,255,0) 0px, rgba(255,255,255,0) 26px, rgba(255,255,255,.09) 31px, rgba(255,255,255,0) 38px, rgba(8,40,60,.10) 46px, rgba(255,255,255,0) 54px),
+      radial-gradient(ellipse 70% 55% at 50% 60%, rgba(255,255,255,0) 40%, rgba(6,38,58,.35) 100%),
+      linear-gradient(170deg, #8cc3d4 0%, #5aa1b9 30%, #3d87a2 60%, #2c6f8b 100%);
     background-attachment:fixed;
     color:var(--txt);
     min-height:100vh;
@@ -429,28 +434,52 @@
   @media(max-width:1400px) and (min-width:1101px){#projGrid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}}
 
   /* quadro */
-  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}
-  @media(max-width:1100px){.board{grid-template-columns:1fr}}
-  .bcol{background:var(--board);border:1px solid var(--line);border-radius:14px;padding:12px 12px 14px;
+  .board{display:flex;gap:12px;align-items:flex-start;overflow-x:auto;padding-bottom:10px;
+         scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.45) transparent}
+  .board > .bcol{flex:0 0 288px;width:288px}
+  @media(max-width:1100px){.board{flex-direction:column;align-items:stretch;overflow-x:visible}
+                           .board > .bcol{flex:none;width:auto}}
+  .bcol{background:rgba(10,27,58,.90);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 10px 12px;
+        box-shadow:0 6px 18px rgba(2,12,24,.35);
         min-height:170px;transition:background .15s,box-shadow .15s;
         display:flex;flex-direction:column}
   .bcol.drop{background:var(--green-soft);box-shadow:0 0 0 2px var(--green) inset}
   .bcol-head{display:flex;align-items:center;gap:8px;
              position:sticky;top:54px;z-index:5;
-             margin:-12px -12px 12px;padding:13px 15px 11px;
-             background:var(--board);border-radius:13px 13px 0 0;
+             margin:-12px -10px 10px;padding:12px 12px 10px;
+             background:transparent;border-radius:13px 13px 0 0;
              border-bottom:1px solid var(--line)}
   .bcol-head.presa{box-shadow:0 10px 18px -10px rgba(0,0,0,.7)}
   .bcol-dot{width:10px;height:10px;border-radius:50%;flex:none}
-  .bcol-title{font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;text-transform:uppercase;
+  .bcol-title{font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;
               letter-spacing:.6px;color:var(--txt)}
   .bcol-count{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--txt-dim);background:var(--panel);
               border:1px solid var(--line);border-radius:20px;padding:2px 11px;font-variant-numeric:tabular-nums}
-  .bcol-body{display:flex;flex-direction:column;gap:9px;min-height:56px;flex:1}
+  .bcol-body{display:flex;flex-direction:column;gap:8px;min-height:40px;flex:1}
+  /* cards mais compactos nas colunas estreitas */
+  .bcol .task{padding:9px 10px;border-radius:9px}
+  .bcol .task-top{gap:8px}
+  .bcol .t-title-txt{font-size:13.5px}
+  .bcol .t-context{font-size:12px}
+  .bcol .t-tags{gap:5px;margin-top:7px}
+  .bcol .t-link{max-width:112px;font-size:10.5px;padding:2px 6px}
+  .bcol .t-del,.bcol .t-arch,.bcol .t-copy{padding:2px 4px}
+  .bcol .tag{font-size:10.5px;padding:2px 8px}
+  /* coluna Anotações */
+  .bcol[data-col="nota"] .task{border-left-width:4px}
+  .bcol[data-col="nota"] .t-context{color:var(--txt);font-size:12.5px;margin-top:4px}
+  .t-copy{background:transparent;border:none;color:var(--txt-faint);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px}
+  .t-copy:hover{color:var(--txt);background:var(--panel-2)}
+  /* títulos e abas legíveis sobre o fundo claro */
+  .main > .cols > section > .col-head h2,
+  .main > .cols > section > .col-head + .tabs .tab{text-shadow:0 1px 3px rgba(2,12,24,.75)}
+  .main > .cols > section > .col-head + .tabs{border-bottom-color:rgba(255,255,255,.35)}
+  .main > .cols > section > .col-head + .tabs .tab{color:#eaf6ff}
+  .main > .cols > section > .col-head + .tabs .tab.active{color:#fff;border-bottom-color:#fff}
   .bcol-body .task{margin-bottom:0}
-  .bcol-empty{text-align:center;color:var(--txt-faint);font-size:12.5px;line-height:1.5;padding:22px 10px;
-              border:1.5px dashed var(--line);border-radius:11px;
-              flex:1;display:flex;align-items:center;justify-content:center;min-height:110px}
+  .bcol-empty{text-align:center;color:var(--txt-faint);font-size:12px;line-height:1.5;padding:16px 10px;
+              border:1.5px dashed var(--line);border-radius:10px;
+              display:flex;align-items:center;justify-content:center;min-height:70px}
   .bcol-add{width:100%;margin-top:11px;background:transparent;border:1.5px dashed var(--line);color:var(--txt-faint);
             border-radius:10px;padding:9px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s}
   .bcol-add:hover{border-color:var(--green);color:var(--green-dark);background:var(--green-soft)}
@@ -669,6 +698,15 @@
             </div>
             <div class="bcol-body" id="col-arquivada"></div>
           </div>
+          <div class="bcol" data-col="nota">
+            <div class="bcol-head">
+              <span class="bcol-dot" style="background:var(--a-coopefarma)"></span>
+              <span class="bcol-title">Anotações</span>
+              <span class="bcol-count" id="c-nota">0</span>
+            </div>
+            <div class="bcol-body" id="col-nota"></div>
+            <button class="bcol-add" id="addNotaCard">+ Adicionar anotação</button>
+          </div>
         </div>
       </section>
 
@@ -858,6 +896,7 @@ const COLS = {
   inbox:     {label:'Caixa de Entrada', icone:'📥'},
   exec:      {label:'Em Execução',      icone:'⚡'},
   arquivada: {label:'Arquivadas',       icone:'📦'},
+  nota:      {label:'Anotações',        icone:'📝'},
 };
 function taskStatus(t){
   if(t && t.status && COLS[t.status]) return t.status;
@@ -1136,7 +1175,7 @@ function bindBoard(){
 
 function renderTasks(){
   // badges dos filtros (contam só o que não está arquivado)
-  const vivas=state.tasks.filter(t=>!t.discarded && taskStatus(t)!=='arquivada');
+  const vivas=state.tasks.filter(t=>!t.discarded && taskStatus(t)!=='arquivada' && taskStatus(t)!=='nota');
   document.getElementById('b-todas').textContent   = vivas.length;
   document.getElementById('b-urgentes').textContent= vivas.filter(t=>t.prio==='alta'&&!t.done).length;
   document.getElementById('b-hoje').textContent    = vivas.filter(t=>t.date===todayISO()).length;
@@ -1145,7 +1184,8 @@ function renderTasks(){
   const vazio={
     inbox:'Nada na caixa de entrada.<br>Use <b>+ Adicionar tarefa</b> aqui embaixo.',
     exec:'Arraste para cá o que você<br>já começou a tratar.',
-    arquivada:'Nada arquivado ainda.'
+    arquivada:'Nada arquivado ainda.',
+    nota:'Registre aqui suas anotações.<br>Use <b>+ Adicionar anotação</b>.'
   };
 
   Object.keys(COLS).forEach(col=>{
@@ -1153,7 +1193,8 @@ function renderTasks(){
     body.innerHTML='';
     const daColuna=state.tasks.filter(t=>!t.discarded && taskStatus(t)===col);
     document.getElementById('c-'+col).textContent=daColuna.length;
-    const shown=daColuna.filter(taskMatchesFilter);
+    // anotações não são tarefas: aparecem em qualquer filtro
+    const shown = (col==='nota') ? daColuna : daColuna.filter(taskMatchesFilter);
     if(!shown.length){
       const e=document.createElement('div'); e.className='bcol-empty';
       e.innerHTML = daColuna.length ? 'Nenhuma tarefa neste filtro.' : vazio[col];
@@ -1186,12 +1227,15 @@ function buildTaskCard(t,col){
   ck.onclick=()=>{t.done=!t.done;syncTaskToProject(t);reorderTask(t);renderAll();save();};
 
   const body=document.createElement('div'); body.className='t-body';
-  const ti=document.createElement('textarea'); ti.className='t-title-txt'; ti.rows=1; ti.value=t.title; ti.placeholder='Tarefa…';
+  const ehNota = (col==='nota');
+  if(ehNota) li.classList.add('is-nota');
+  const ti=document.createElement('textarea'); ti.className='t-title-txt'; ti.rows=1; ti.value=t.title; ti.placeholder=ehNota?'Título da anotação…':'Tarefa…';
   ti.oninput=()=>{t.title=ti.value;autoGrow(ti);save();};
   ti.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ti.blur();}};
-  const cx=document.createElement('textarea'); cx.className='t-context'; cx.rows=1; cx.value=t.context||''; cx.placeholder='contexto (opcional)';
+  const cx=document.createElement('textarea'); cx.className='t-context'; cx.rows=1; cx.value=t.context||''; cx.placeholder=ehNota?'escreva a anotação…':'contexto (opcional)';
   cx.oninput=()=>{t.context=cx.value;autoGrow(cx);save();};
-  cx.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();cx.blur();}};
+  // na anotação o Enter quebra linha; na tarefa ele sai do campo
+  if(!ehNota) cx.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();cx.blur();}};
   body.appendChild(ti); body.appendChild(cx);
 
   const right=document.createElement('div'); right.className='t-time';
@@ -1201,7 +1245,8 @@ function buildTaskCard(t,col){
   const grip=document.createElement('div'); grip.className='t-grip'; grip.textContent='⠿'; grip.title='Arraste para outra coluna';
   right.appendChild(tm); right.appendChild(grip);
 
-  top.appendChild(ck); top.appendChild(body); top.appendChild(right);
+  if(ehNota){ tm.style.display='none'; top.appendChild(body); top.appendChild(right); }
+  else { top.appendChild(ck); top.appendChild(body); top.appendChild(right); }
 
   const tags=document.createElement('div'); tags.className='t-tags';
 
@@ -1218,7 +1263,8 @@ function buildTaskCard(t,col){
   const at=document.createElement('span'); at.className='tag area'; at.style.background=AREAS[t.area].color;
   at.textContent=AREAS[t.area].label; at.title='Clique para mudar área';
   at.onclick=()=>{const ks=Object.keys(AREAS);t.area=ks[(ks.indexOf(t.area)+1)%ks.length];renderAll();save();};
-  tags.appendChild(pt); tags.appendChild(at);
+  if(!ehNota) tags.appendChild(pt);
+  tags.appendChild(at);
 
   // seletor de projeto
   const projSel=document.createElement('select'); projSel.className='t-link';
@@ -1230,10 +1276,10 @@ function buildTaskCard(t,col){
     if(t.projectId&&t.done)syncTaskToProject(t);
     renderAll();save();
   };
-  tags.appendChild(projSel);
+  if(!ehNota) tags.appendChild(projSel);
 
   // seletor de sub-área (só se vinculado a projeto)
-  if(t.projectId){
+  if(t.projectId && !ehNota){
     const p=state.projects.find(x=>x.id===t.projectId);
     if(p){
       const grpSel=document.createElement('select'); grpSel.className='t-link';
@@ -1267,7 +1313,17 @@ function buildTaskCard(t,col){
     tags.appendChild(nb);
   }
 
+  if(ehNota){
+    const cp=document.createElement('button'); cp.className='t-copy'; cp.textContent='⧉'; cp.title='Copiar texto da anotação';
+    cp.onclick=()=>{
+      const txt=[t.title,t.context].filter(Boolean).join('\n');
+      try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt); }catch(err){}
+      cp.textContent='✓'; setTimeout(()=>cp.textContent='⧉',1200);
+    };
+    tags.appendChild(cp);
+  }
   const arch=document.createElement('button'); arch.className='t-arch';
+  if(ehNota) arch.style.display='none';
   arch.innerHTML = (col==='arquivada') ? '↩' : '📦';
   arch.title = (col==='arquivada') ? 'Devolver para a Caixa de Entrada' : 'Arquivar (preserva histórico)';
   arch.onclick=()=>moveTask(t.id, col==='arquivada'?'inbox':'arquivada', null);
@@ -2115,6 +2171,13 @@ function addTask(){
 }
 document.getElementById('addTaskBtn').onclick=addTask;
 document.getElementById('addQuick').onclick=addTask;
+function addNotaCard(){
+  state.tasks.unshift({id:uid('t'),title:'',context:'',area:'neutro',prio:'media',time:'',
+                       date:todayISO(),done:false,status:'nota',archived:false});
+  renderAll();save();
+  const inp=document.querySelector('#col-nota .t-title-txt');if(inp)inp.focus();
+}
+document.getElementById('addNotaCard').onclick=addNotaCard;
 
 document.getElementById('addNtBtn').onclick=()=>{
   const name=prompt('Nome da nova anotação (ex.: Acessos, Telefones úteis):');
