@@ -451,6 +451,9 @@
              background:transparent;border-radius:13px 13px 0 0;
              border-bottom:1px solid var(--line)}
   .bcol-head.presa{box-shadow:0 10px 18px -10px rgba(0,0,0,.7)}
+  .bcol-nova{border:none;background:var(--green);color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;
+             padding:4px 9px;border-radius:20px;cursor:pointer;white-space:nowrap;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+  .bcol-nova:hover{filter:brightness(1.12)}
   .bcol-dot{width:10px;height:10px;border-radius:50%;flex:none}
   .bcol-title{font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;
               letter-spacing:.6px;color:var(--txt)}
@@ -665,7 +668,6 @@
       <section>
         <div class="col-head">
           <h2>Fluxo do Dia</h2>
-          <button class="btn sm" id="addTaskBtn">+ Nova tarefa</button>
         </div>
         <div class="tabs" id="taskTabs">
           <div class="tab active" data-f="todas">Todas <span class="badge" id="b-todas">0</span></div>
@@ -678,6 +680,7 @@
             <div class="bcol-head">
               <span class="bcol-dot" style="background:var(--p-media)"></span>
               <span class="bcol-title">Caixa de Entrada</span>
+              <button class="bcol-nova" data-nova="inbox" title="Nova tarefa na Caixa de Entrada">+ Nova tarefa</button>
               <span class="bcol-count" id="c-inbox">0</span>
             </div>
             <div class="bcol-body" id="col-inbox"></div>
@@ -687,6 +690,7 @@
             <div class="bcol-head">
               <span class="bcol-dot" style="background:var(--green)"></span>
               <span class="bcol-title">Em Execução</span>
+              <button class="bcol-nova" data-nova="exec" title="Nova tarefa já em Execução">+ Nova tarefa</button>
               <span class="bcol-count" id="c-exec">0</span>
             </div>
             <div class="bcol-body" id="col-exec"></div>
@@ -2181,15 +2185,23 @@ document.getElementById('tmAddItem').onclick=()=>{
 };
 
 // ====== AÇÕES ======
-function addTask(){
-  state.tasks.unshift({id:uid('t'),title:'',context:'',area:'neutro',prio:'media',time:'',
-                       date:todayISO(),done:false,status:'inbox',archived:false});
+function addTask(col){
+  col=(col==='exec')?'exec':'inbox';
+  const t={id:uid('t'),title:'',context:'',area:'neutro',prio:'media',time:'',
+           date:todayISO(),done:false,status:col,archived:false};
+  if(col==='exec') t.iniciadaEm=new Date().toISOString();
+  state.tasks.unshift(t);                       // entra no topo da coluna, logo abaixo do título
   if(activeFilter==='urgentes'){activeFilter='todas';syncTabs();}
   renderAll();save();
-  const inp=document.querySelector('#col-inbox .t-title-txt');if(inp)inp.focus();
+  const body=document.getElementById('col-'+col);
+  const inp=body && body.querySelector('.t-title-txt');
+  if(inp){ inp.focus(); const card=inp.closest('.task'); if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'}); }
 }
-document.getElementById('addTaskBtn').onclick=addTask;
-document.getElementById('addQuick').onclick=addTask;
+document.querySelectorAll('.bcol-nova').forEach(b=>{
+  b.onclick=e=>{ e.stopPropagation(); addTask(b.dataset.nova); };
+  b.draggable=false;
+});
+document.getElementById('addQuick').onclick=()=>addTask('inbox');
 function addNotaCard(){
   state.tasks.unshift({id:uid('t'),title:'',context:'',area:'neutro',prio:'media',time:'',
                        date:todayISO(),done:false,status:'nota',archived:false});
