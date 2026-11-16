@@ -174,6 +174,9 @@
   .t-grip{color:var(--txt-faint);cursor:grab;font-size:16px;user-select:none}
   .t-grip:active{cursor:grabbing}
   .t-tags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
+  .t-datas{display:flex;flex-wrap:wrap;gap:2px 10px;margin-top:4px;font-size:11px;color:var(--txt-faint);line-height:1.35}
+  .t-datas .fin{color:#1f845a;font-weight:600}
+  .task.done .t-datas{opacity:1}
   .t-link{font-size:11px;font-weight:500;border:1px solid var(--line);background:var(--panel-2);
     color:var(--txt-dim);border-radius:20px;padding:2px 8px;cursor:pointer;font-family:'Inter';outline:none;
     max-width:160px}
@@ -901,6 +904,18 @@ function seed(){
   ];
 }
 
+// datas de criação / finalização dos cards
+function marcaFinalizacao(t){
+  if(t.done){ if(!t.finalizadoEm) t.finalizadoEm=new Date().toISOString(); }
+  else delete t.finalizadoEm;
+}
+function fmtDataHora(iso){
+  if(!iso) return '';
+  const p=n=>String(n).padStart(2,'0');
+  if(/^\d{4}-\d{2}-\d{2}$/.test(iso)){ const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+  const d=new Date(iso); if(isNaN(d)) return '';
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 function todayISO(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}
 
 // ══════════════════ COLUNAS DO QUADRO ══════════════════
@@ -1155,8 +1170,8 @@ function moveTask(dragId, col, antesDoId){
   const to = antesDoId ? state.tasks.findIndex(x=>x.id===antesDoId) : -1;
   if(to<0) state.tasks.push(t); else state.tasks.splice(to,0,t);
   if(mudouColuna && col==='exec' && !t.iniciadaEm) t.iniciadaEm=new Date().toISOString();
-  if(mudouColuna && col==='concluida' && !t.done){ t.done=true; syncTaskToProject(t); }
-  else if(mudouColuna && (col==='exec' || col==='inbox') && t.done){ t.done=false; syncTaskToProject(t); }
+  if(mudouColuna && col==='concluida' && !t.done){ t.done=true; marcaFinalizacao(t); syncTaskToProject(t); }
+  else if(mudouColuna && (col==='exec' || col==='inbox') && t.done){ t.done=false; marcaFinalizacao(t); syncTaskToProject(t); }
   renderAll(); save();
 }
 
@@ -1242,6 +1257,7 @@ function buildTaskCard(t,col){
   ck.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
   ck.onclick=()=>{
     t.done=!t.done;
+    marcaFinalizacao(t);
     const st=taskStatus(t);
     if(t.done && (st==='exec' || st==='inbox')) setTaskStatus(t,'concluida');
     else if(!t.done && st==='concluida') setTaskStatus(t,'exec');
@@ -1259,6 +1275,14 @@ function buildTaskCard(t,col){
   // na anotação o Enter quebra linha; na tarefa ele sai do campo
   if(!ehNota) cx.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();cx.blur();}};
   body.appendChild(ti); body.appendChild(cx);
+  const criado=fmtDataHora(t.criadoEm||t.date);
+  const finalizado=t.done?fmtDataHora(t.finalizadoEm):'';
+  if(criado||finalizado){
+    const dt=document.createElement('div'); dt.className='t-datas';
+    if(criado){ const a=document.createElement('span'); a.textContent='Criado em: '+criado; dt.appendChild(a); }
+    if(finalizado){ const b=document.createElement('span'); b.className='fin'; b.textContent='Finalizado em: '+finalizado; dt.appendChild(b); }
+    body.appendChild(dt);
+  }
 
   const right=document.createElement('div'); right.className='t-time';
   const tm=document.createElement('input'); tm.value=t.time||''; tm.placeholder='--:--';
@@ -2187,7 +2211,7 @@ document.getElementById('tmAddItem').onclick=()=>{
 function addTask(col){
   col=(col==='exec')?'exec':'inbox';
   const t={id:uid('t'),title:'',context:'',area:'neutro',prio:'media',time:'',
-           date:todayISO(),done:false,status:col,archived:false};
+           date:todayISO(),done:false,status:col,archived:false,criadoEm:new Date().toISOString()};
   if(col==='exec') t.iniciadaEm=new Date().toISOString();
   state.tasks.unshift(t);                       // entra no topo da coluna, logo abaixo do título
   if(activeFilter==='urgentes'){activeFilter='todas';syncTabs();}
@@ -2203,7 +2227,7 @@ document.querySelectorAll('.bcol-nova').forEach(b=>{
 document.getElementById('addQuick').onclick=()=>addTask('inbox');
 function addNotaCard(){
   state.tasks.unshift({id:uid('t'),title:'',context:'',area:'neutro',prio:'media',time:'',
-                       date:todayISO(),done:false,status:'nota',archived:false});
+                       date:todayISO(),done:false,status:'nota',archived:false,criadoEm:new Date().toISOString()});
   renderAll();save();
   const inp=document.querySelector('#col-nota .t-title-txt');if(inp)inp.focus();
 }
